@@ -1,5 +1,5 @@
 "use client";
-import QRCode from "qrcode.react";
+import { QRCode } from "qrcode.react";
 
 export default function QRCodePage() {
   const uploadUrl = "https://melihanim.vercel.app/upload";
