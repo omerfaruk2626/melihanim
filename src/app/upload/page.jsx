@@ -195,11 +195,11 @@ export default function UploadPage() {
                   onClick={() => setSelectedImage(URL.createObjectURL(file))}
                   className="w-full h-32 object-cover rounded cursor-pointer"
                 />
-                <p className="mt-2 text-xs text-center break-all">
+                <p className="mt-2 text-[10px] text-black text-center break-all">
                   {file.name}
                 </p>
 
-                <div className="w-full bg-gray-200 h-2 rounded mt-2">
+                <div className="w-full bg-gray-200 h-2 rounded mt-1">
                   <div
                     className={`h-2 rounded ${
                       completed[idx]
@@ -209,6 +209,11 @@ export default function UploadPage() {
                     style={{ width: `${progresses[idx]}%` }}
                   ></div>
                 </div>
+                {completed[idx] && (
+                  <div className="text-green-600 font-bold text-sm mt-1 flex items-center gap-1">
+                    ✔️ <span>Yüklendi</span>
+                  </div>
+                )}
 
                 {!uploadFinished && (
                   <button
