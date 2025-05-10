@@ -13,9 +13,9 @@ export default function LoginPage() {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const user = await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, email, password);
       localStorage.setItem("galleryAccess", "true");
-      toast.success("Giriş başarılı!");
+      toast.success("👋 Hoş geldiniz!");
       router.push("/gallery");
     } catch (error) {
       toast.error("Giriş başarısız!");
@@ -24,36 +24,40 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-      <form
-        onSubmit={handleLogin}
-        className="bg-white shadow-md rounded px-8 pt-6 pb-8 w-full max-w-sm"
-      >
-        <h2 className="text-xl font-bold mb-6 text-center">📸 Galeri Girişi</h2>
+    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-100 via-blue-100 to-purple-100 p-6">
+      <div className="bg-white shadow-lg rounded-xl px-10 py-8 w-full max-w-md relative">
+        <h2 className="text-2xl font-bold text-center mb-4 text-gray-800">
+          🎊 Galeri Girişi
+        </h2>
+        <form onSubmit={handleLogin} className="flex flex-col gap-4">
+          <input
+            type="email"
+            placeholder="E-posta adresiniz"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full px-4 py-2 border rounded shadow-sm focus:outline-none focus:ring focus:ring-blue-200"
+            required
+          />
+          <input
+            type="password"
+            placeholder="Şifre"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full px-4 py-2 border rounded shadow-sm focus:outline-none focus:ring focus:ring-blue-200"
+            required
+          />
+          <button
+            type="submit"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded transition cursor-pointer shadow-sm"
+          >
+            Giriş Yap
+          </button>
+        </form>
 
-        <input
-          type="email"
-          placeholder="E-posta"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="mb-4 w-full px-4 py-2 border rounded"
-          required
-        />
-        <input
-          type="password"
-          placeholder="Şifre"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="mb-6 w-full px-4 py-2 border rounded"
-          required
-        />
-        <button
-          type="submit"
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded"
-        >
-          Giriş Yap
-        </button>
-      </form>
+        <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-5xl animate-bounce">
+          📸
+        </div>
+      </div>
     </main>
   );
 }

@@ -63,7 +63,7 @@ export default function UploadPage() {
 
               toast.dismiss(t.id);
             }}
-            className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
+            className="bg-red-600 cursor-pointer hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
           >
             Evet
           </button>
@@ -143,12 +143,13 @@ export default function UploadPage() {
              before:bg-cover before:bg-center before:blur-sm before:opacity-80 before:z-0"
     >
       <div className="relative z-10 flex flex-col items-center w-full">
-        <h1 className="text-2xl text-white font-bold mb-4 text-center">
-          Fotoğraf Yükle
+        <h1 className="text-2xl text-gray-700 font-bold mb-4 text-center animate-pulse">
+          📤 Fotoğraf Yükle
         </h1>
+
         <button
           onClick={() => router.push("/")}
-          className="fixed top-3 left-3 bg-white hover:bg-gray-100 text-blue-600 border border-gray-300 rounded-full w-12 h-12 shadow flex items-center justify-center transition"
+          className="fixed top-3 cursor-pointer left-3 bg-white hover:bg-gray-100 text-blue-600 border border-gray-300 rounded-full w-12 h-12 shadow flex items-center justify-center transition"
           title="Anasayfa"
         >
           <HomeIcon fontSize="medium" />
@@ -164,9 +165,9 @@ export default function UploadPage() {
         {!uploadFinished && (
           <label
             htmlFor="photoInput"
-            className="border-2 border-dashed border-gray-200 rounded-lg p-8 text-center cursor-pointer hover:bg-gray-100 transition w-full max-w-2xl mb-6"
+            className="border-2 border-dashed border-gray-200 rounded-lg p-8 text-center cursor-pointer hover:bg-gray-100 hover:text-gray-700 transition w-full max-w-2xl mb-6"
           >
-            <p className="text-white font-medium">
+            <p className=" font-medium">
               📂 Fotoğraf seçmek için tıklayın (en fazla {MAX_FILES})
             </p>
             <input
@@ -212,7 +213,7 @@ export default function UploadPage() {
                 {!uploadFinished && (
                   <button
                     onClick={() => handleRemoveFile(idx)}
-                    className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white rounded-full w-6 h-6 text-xs flex items-center justify-center"
+                    className="absolute cursor-pointer top-2 right-2 bg-red-600 hover:bg-red-700 text-white rounded-full w-6 h-6 text-xs flex items-center justify-center"
                     title="Sil"
                   >
                     ✕
@@ -226,7 +227,7 @@ export default function UploadPage() {
         {files.length > 0 && !uploadFinished && (
           <button
             onClick={handleUploadAll}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded disabled:opacity-50"
+            className="bg-blue-600 cursor-pointer hover:bg-blue-700 text-white px-6 py-2 rounded disabled:opacity-50"
           >
             Fotoğrafları Kaydet
           </button>
@@ -235,7 +236,7 @@ export default function UploadPage() {
         {uploadFinished && (
           <button
             onClick={resetAll}
-            className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded"
+            className="bg-green-600 cursor-pointer hover:bg-green-700 text-white px-6 py-2 rounded"
           >
             🔄 Yeni Fotoğraf Yükle
           </button>

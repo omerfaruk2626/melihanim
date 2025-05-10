@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebaseConfig";
@@ -21,6 +21,9 @@ export default function GalleryPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const qrRef = useRef(null);
+  const uploadUrl = "https://melihanim.vercel.app/upload";
 
   useEffect(() => {
     const access = localStorage.getItem("galleryAccess");
@@ -60,6 +63,16 @@ export default function GalleryPage() {
       })),
     [filteredPhotos]
   );
+
+  const handleDownloadQR = () => {
+    const canvas = qrRef.current?.querySelector("canvas");
+    if (!canvas) return;
+    const url = canvas.toDataURL("image/png");
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "melihanim-qr.png";
+    a.click();
+  };
 
   const handleFilterChange = (e) => {
     const value = e.target.value;
@@ -111,19 +124,28 @@ export default function GalleryPage() {
           )}
           <button
             onClick={() => router.push("/")}
-            className="absolute top-3 left-3 bg-white hover:bg-gray-100 text-blue-600 border border-gray-300 rounded-full w-12 h-12 shadow flex items-center justify-center"
+            className="absolute top-3 left-3 cursor-pointer bg-white hover:bg-gray-100 text-blue-600 border border-gray-300 rounded-full w-12 h-12 shadow flex items-center justify-center"
             title="Anasayfa"
           >
             <HomeIcon fontSize="medium" />
           </button>
           {isLoggedIn && (
-            <button
-              onClick={handleLogout}
-              className="absolute top-3 right-3 bg-red-600 hover:bg-red-700 text-white rounded-full w-12 h-12 shadow flex items-center justify-center"
-              title="Çıkış Yap"
-            >
-              <LogoutIcon fontSize="medium" />
-            </button>
+            <>
+              <button
+                onClick={handleLogout}
+                className="absolute top-3 right-3 cursor-pointer bg-red-600 hover:bg-red-700 text-white rounded-full w-12 h-12 shadow flex items-center justify-center"
+                title="Çıkış Yap"
+              >
+                <LogoutIcon fontSize="medium" />
+              </button>
+              <button
+                onClick={() => setQrModalOpen(true)}
+                className="absolute top-3 right-20 cursor-pointer bg-white hover:bg-gray-100 text-blue-600 border border-gray-300 rounded-full w-12 h-12 shadow flex items-center justify-center"
+                title="QR Kod"
+              >
+                📷
+              </button>
+            </>
           )}
         </div>
         <div className="flex-1 overflow-y-auto p-4">
@@ -188,6 +210,45 @@ export default function GalleryPage() {
           )}
         </div>
       </div>
+      {qrModalOpen && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-6 shadow-xl text-center relative max-w-xs w-full">
+            <h2 className="text-lg font-bold mb-4">Yükleme QR Kodu</h2>
+
+            <div ref={qrRef} className="mb-4">
+              <QRCode value={uploadUrl} size={180} />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() =>
+                  window.open(
+                    `https://wa.me/?text=${encodeURIComponent(uploadUrl)}`,
+                    "_blank"
+                  )
+                }
+                className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded"
+              >
+                WhatsApp'ta Paylaş
+              </button>
+              <button
+                onClick={handleDownloadQR}
+                className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded"
+              >
+                QR'ı İndir
+              </button>
+            </div>
+
+            <button
+              onClick={() => setQrModalOpen(false)}
+              className="absolute top-2 right-2 text-gray-600 hover:text-red-500 text-xl"
+              title="Kapat"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
