@@ -89,7 +89,7 @@ export default function HomePage() {
                 }
                 className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded"
               >
-                WhatsApp'ta Paylaş
+                WhatsApp ile Paylaş
               </button>
               <button
                 onClick={() => {
@@ -103,7 +103,7 @@ export default function HomePage() {
                 }}
                 className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded"
               >
-                QR'ı İndir
+                QR Kodu İndir
               </button>
             </div>
 
