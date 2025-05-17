@@ -1,28 +1,32 @@
 "use client";
+
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebaseConfig";
 import { useEffect, useState } from "react";
 import GalleryClient from "./GalleryClient";
-import DeletedGallery from "./DeletedGallery"; // Yeni bileşen eklenecek
+import { useRouter } from "next/navigation";
 
 export default function GalleryPage() {
+  const [authChecked, setAuthChecked] = useState(false);
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        router.replace("/login"); // ❗ replace kullanırsak "geri" tuşuyla login'e geri dönemez
+      }
+      setAuthChecked(true);
     });
+
     return () => unsubscribe();
-  }, []);
+  }, [router]);
 
-  if (loading) return null;
-  if (!user) return null;
+  // Auth kontrolü tamamlanmadan hiçbir şey gösterme
+  if (!authChecked) return null;
 
-  return (
-    <div>
-      <GalleryClient />
-    </div>
-  );
+  // Kullanıcı varsa galeriyi göster
+  return <GalleryClient />;
 }

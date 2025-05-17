@@ -19,9 +19,9 @@ export default function UploadPage() {
   const router = useRouter();
 
   const handleFileChange = (e) => {
-    const selected = Array.from(e.target.files).slice(0, MAX_FILES);
+    const selected = Array.from(e.target.files);
 
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
     const MAX_SIZE_MB = 10;
 
     const validFiles = selected.filter((file) => {
@@ -36,41 +36,33 @@ export default function UploadPage() {
       );
     }
 
-    setFiles(validFiles);
-    setProgresses(new Array(validFiles.length).fill(0));
-    setCompleted(new Array(validFiles.length).fill(false));
+    if (validFiles.length > MAX_FILES) {
+      toast(
+        `🔢 ${validFiles.length} fotoğraf seçtiniz. Sadece ilk ${MAX_FILES} tanesi yüklenecek.`,
+        { icon: "⚠️" }
+      );
+    }
+
+    const limitedFiles = validFiles.slice(0, MAX_FILES);
+
+    setFiles(limitedFiles);
+    setProgresses(new Array(limitedFiles.length).fill(0));
+    setCompleted(new Array(limitedFiles.length).fill(false));
     setUploadFinished(false);
   };
 
-  const handleDelete = async (photo) => {
-    const oldRef = storageRef(storage, `photos/${photo.fileName}`);
-    const trashRef = storageRef(storage, `trash/${photo.fileName}`);
-  
-    try {
-      // 📥 Adım 1: Dosya verisini indir
-      const response = await fetch(photo.url);
-      const blob = await response.blob();
-  
-      // 📤 Adım 2: Trash klasörüne yükle
-      await uploadBytes(trashRef, blob);
-  
-      // 🗑️ Adım 3: Orijinal dosyayı sil
-      await deleteObject(oldRef);
-  
-      // 🔥 Adım 4: Firestore'dan kaydı sil
-      await deleteDoc(doc(db, "photos", photo.id));
-  
-      // 📄 Adım 5: Silinenler koleksiyonuna kayıt
-      await addDoc(collection(db, "deletedPhotos"), {
-        ...photo,
-        deletedAt: new Date(),
-      });
-  
-      toast.success("Fotoğraf çöp kutusuna taşındı");
-    } catch (err) {
-      console.error("Taşıma hatası:", err);
-      toast.error("Silme işlemi başarısız oldu");
-    }
+  const handleRemoveFile = (index) => {
+    const updatedFiles = [...files];
+    const updatedProgresses = [...progresses];
+    const updatedCompleted = [...completed];
+
+    updatedFiles.splice(index, 1);
+    updatedProgresses.splice(index, 1);
+    updatedCompleted.splice(index, 1);
+
+    setFiles(updatedFiles);
+    setProgresses(updatedProgresses);
+    setCompleted(updatedCompleted);
   };
 
   const handleUploadAll = async () => {
@@ -146,12 +138,12 @@ export default function UploadPage() {
 
   return (
     <main
-      className="relative min-h-screen p-6 text-white flex flex-col items-center overflow-hidden
+      className="relative min-h-screen p-6 text-purple-800 font-bold flex flex-col items-center overflow-hidden
              before:absolute before:inset-0 before:bg-[url('/bg.png')] 
-             before:bg-cover before:bg-center before:blur-sm before:opacity-80 before:z-0"
+             before:bg-cover before:bg-center before:blur-sm before:opacity-60 before:z-0"
     >
       <div className="relative z-10 flex flex-col items-center w-full">
-        <h1 className="text-2xl text-gray-700 font-bold mb-4 text-center animate-pulse">
+        <h1 className="text-2xl text-gray-700 font-bold mb-4 text-center ">
           📤 Fotoğraf Yükle
         </h1>
 
@@ -160,20 +152,20 @@ export default function UploadPage() {
           className="fixed top-3 cursor-pointer left-3 bg-white hover:bg-gray-100 text-blue-600 border border-gray-300 rounded-full w-12 h-12 shadow flex items-center justify-center transition"
           title="Anasayfa"
         >
-          <HomeIcon fontSize="medium" />
+          <HomeIcon fontSize="medium" className="text-purple-600" />
         </button>
         <input
           type="text"
           placeholder="Adınız (zorunlu)"
           value={uploaderName}
           onChange={(e) => setUploaderName(e.target.value)}
-          className="mb-4 border px-3 py-2 rounded w-full max-w-md"
+          className="mb-4 border-4  border-purple-600 animate-pulse px-3 py-2 rounded w-full max-w-md focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
 
         {!uploadFinished && (
           <label
             htmlFor="photoInput"
-            className="border-2 border-dashed border-gray-200 rounded-lg p-8 text-center cursor-pointer hover:bg-gray-100 hover:text-gray-700 transition w-full max-w-2xl mb-6"
+            className="border-4 border-dashed border-purple-700 rounded-lg p-8 text-center cursor-pointer hover:bg-gray-100 hover:text-gray-700 transition w-full max-w-2xl mb-6"
           >
             <p className=" font-medium">
               📂 Fotoğraf seçmek için tıklayın (en fazla {MAX_FILES})
@@ -190,8 +182,22 @@ export default function UploadPage() {
           </label>
         )}
 
+        {files.length > 0 && !uploadFinished && (
+          <>
+            <button
+              onClick={handleUploadAll}
+              className="bg-purple-600 cursor-pointer hover:bg-blue-700 text-white px-6 py-2 rounded disabled:opacity-50"
+            >
+              Fotoğrafları Kaydet
+            </button>
+            <p className="mt-2 text-sm text-purple-700 font-semibold">
+              📷 Seçilen fotoğraf sayısı: {files.length} / {MAX_FILES}
+            </p>
+          </>
+        )}
+
         {files.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6 w-full max-w-6xl">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6 w-full mt-3 max-w-6xl">
             {files.map((file, idx) => (
               <div
                 key={idx}
@@ -235,15 +241,6 @@ export default function UploadPage() {
               </div>
             ))}
           </div>
-        )}
-
-        {files.length > 0 && !uploadFinished && (
-          <button
-            onClick={handleUploadAll}
-            className="bg-blue-600 cursor-pointer hover:bg-blue-700 text-white px-6 py-2 rounded disabled:opacity-50"
-          >
-            Fotoğrafları Kaydet
-          </button>
         )}
 
         {uploadFinished && (

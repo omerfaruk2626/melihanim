@@ -62,7 +62,7 @@ export default function LoginPage() {
           />
           <button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded transition cursor-pointer shadow-sm"
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded transition cursor-pointer shadow-sm"
           >
             Giriş Yap
           </button>
