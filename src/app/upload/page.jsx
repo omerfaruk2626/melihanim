@@ -104,7 +104,9 @@ export default function UploadPage() {
                 url: downloadURL,
                 createdAt: Timestamp.now(),
                 uploaderName: uploaderName.trim(),
+                isDeleted: false,
               };
+
               console.log("🧪 Firestore'a yazılacak:", docData);
 
               const docRef = await addDoc(collection(db, "photos"), docData);

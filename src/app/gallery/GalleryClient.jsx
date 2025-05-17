@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
-
+import { where } from "firebase/firestore";
 import {
   collection,
   getDocs,
@@ -13,7 +13,8 @@ import {
   doc,
   addDoc,
 } from "firebase/firestore";
-import { ref, deleteObject } from "firebase/storage";
+import { updateDoc } from "firebase/firestore";
+
 import { signOut } from "firebase/auth";
 import { db, storage, auth } from "@/lib/firebaseConfig";
 import Swal from "sweetalert2";
@@ -43,7 +44,12 @@ export default function GalleryClient() {
   useEffect(() => {
     const fetchPhotos = async () => {
       try {
-        const q = query(collection(db, "photos"), orderBy("createdAt", "desc"));
+        const q = query(
+          collection(db, "photos"),
+          where("isDeleted", "==", false), // 🔍 sadece silinmemişler
+          orderBy("createdAt", "desc")
+        );
+
         const snapshot = await getDocs(q);
         const photoData = snapshot.docs.map((docSnap) => ({
           ...docSnap.data(),
@@ -93,9 +99,9 @@ export default function GalleryClient() {
   };
 
   const handleSoftDeletePhoto = async (photo) => {
-    // İlk onay: kullanıcıya "emin misin" sorusu
+    // 1. Onay
     const firstConfirm = await Swal.fire({
-      title: "Emin misin?",
+      title: "Fotoğrafı silmek istiyor musun?",
       text: "Bu fotoğraf silinecek.",
       icon: "warning",
       showCancelButton: true,
@@ -106,7 +112,7 @@ export default function GalleryClient() {
 
     if (!firstConfirm.isConfirmed) return;
 
-    // İkinci onay: kullanıcıya son kez sor
+    // 2. Onay
     const secondConfirm = await Swal.fire({
       title: "Emin misin?",
       text: "Son kararın mı?",
@@ -120,22 +126,16 @@ export default function GalleryClient() {
     if (!secondConfirm.isConfirmed) return;
 
     try {
-      await addDoc(collection(db, "deletedPhotos"), {
-        originalUrl: photo.url,
+      await updateDoc(doc(db, "photos", photo.docId), {
+        isDeleted: true,
         deletedAt: new Date(),
-        originalUploader: photo.uploaderName || "Bilinmiyor",
       });
 
-      const path = decodeURIComponent(photo.url.split("/o/")[1].split("?")[0]);
-      const photoRef = ref(storage, path);
-      await deleteObject(photoRef);
-      await deleteDoc(doc(db, "photos", photo.docId));
-
-      toast.success("Silindi (yedek alındı)");
+      toast.success("Fotoğraf silindi.");
       setPhotos((prev) => prev.filter((p) => p.docId !== photo.docId));
       setFilteredPhotos((prev) => prev.filter((p) => p.docId !== photo.docId));
     } catch (err) {
-      console.error("❌ Silme hatası:", err);
+      console.error("Silme hatası:", err);
       toast.error("Silme başarısız oldu");
     }
   };
