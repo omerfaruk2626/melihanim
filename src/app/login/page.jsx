@@ -1,6 +1,7 @@
 "use client";
-import { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
+
+import { useState, useEffect } from "react";
+import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebaseConfig";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -9,19 +10,32 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        router.push("/gallery");
+      } else {
+        setLoading(false);
+      }
+    });
+    return () => unsubscribe();
+  }, [router]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      localStorage.setItem("galleryAccess", "true");
       toast.success("👋 Hoş geldiniz!");
       router.push("/gallery");
     } catch (error) {
-      toast.error("Giriş başarısız!");
       console.error("Login error:", error);
+      toast.error("Giriş başarısız!");
     }
   };
+
+  if (loading) return null;
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-100 via-blue-100 to-purple-100 p-6">

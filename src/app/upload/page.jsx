@@ -42,40 +42,35 @@ export default function UploadPage() {
     setUploadFinished(false);
   };
 
-  const handleRemoveFile = (index) => {
-    toast((t) => (
-      <span>
-        Bu fotoğraf kaldırılsın mı?
-        <div className="mt-2 flex justify-end gap-2">
-          <button
-            onClick={() => {
-              const newFiles = [...files];
-              newFiles.splice(index, 1);
-              setFiles(newFiles);
-
-              const newProgresses = [...progresses];
-              newProgresses.splice(index, 1);
-              setProgresses(newProgresses);
-
-              const newCompleted = [...completed];
-              newCompleted.splice(index, 1);
-              setCompleted(newCompleted);
-
-              toast.dismiss(t.id);
-            }}
-            className="bg-red-600 cursor-pointer hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
-          >
-            Evet
-          </button>
-          <button
-            onClick={() => toast.dismiss(t.id)}
-            className="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded text-sm"
-          >
-            İptal
-          </button>
-        </div>
-      </span>
-    ));
+  const handleDelete = async (photo) => {
+    const oldRef = storageRef(storage, `photos/${photo.fileName}`);
+    const trashRef = storageRef(storage, `trash/${photo.fileName}`);
+  
+    try {
+      // 📥 Adım 1: Dosya verisini indir
+      const response = await fetch(photo.url);
+      const blob = await response.blob();
+  
+      // 📤 Adım 2: Trash klasörüne yükle
+      await uploadBytes(trashRef, blob);
+  
+      // 🗑️ Adım 3: Orijinal dosyayı sil
+      await deleteObject(oldRef);
+  
+      // 🔥 Adım 4: Firestore'dan kaydı sil
+      await deleteDoc(doc(db, "photos", photo.id));
+  
+      // 📄 Adım 5: Silinenler koleksiyonuna kayıt
+      await addDoc(collection(db, "deletedPhotos"), {
+        ...photo,
+        deletedAt: new Date(),
+      });
+  
+      toast.success("Fotoğraf çöp kutusuna taşındı");
+    } catch (err) {
+      console.error("Taşıma hatası:", err);
+      toast.error("Silme işlemi başarısız oldu");
+    }
   };
 
   const handleUploadAll = async () => {
@@ -109,15 +104,28 @@ export default function UploadPage() {
             reject(error);
           },
           async () => {
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            await addDoc(collection(db, "photos"), {
-              url: downloadURL,
-              createdAt: Timestamp.now(),
-              uploaderName: uploaderName.trim(),
-            });
-            newCompleted[i] = true;
-            setCompleted([...newCompleted]);
-            resolve();
+            try {
+              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+              console.log("📤 getDownloadURL tamamlandı:", downloadURL);
+
+              const docData = {
+                url: downloadURL,
+                createdAt: Timestamp.now(),
+                uploaderName: uploaderName.trim(),
+              };
+              console.log("🧪 Firestore'a yazılacak:", docData);
+
+              const docRef = await addDoc(collection(db, "photos"), docData);
+              console.log("📸 Firestore'a eklendi:", docRef.id);
+
+              newCompleted[i] = true;
+              setCompleted([...newCompleted]);
+              resolve();
+            } catch (error) {
+              console.error("❌ Firestore yazma hatası:", error);
+              toast.error("Firestore kaydı başarısız");
+              reject(error);
+            }
           }
         );
       });
