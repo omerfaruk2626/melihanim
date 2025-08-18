@@ -38,7 +38,7 @@ export default function HomePage() {
             onClick={() => router.push("/upload")}
             className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-lg font-semibold rounded-lg shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-xl cursor-pointer whitespace-nowrap text-center"
           >
-            📤 Fotoğraf Yükle
+            📤 Fotoğraf ve Video Yükle
           </button>
           <button
             onClick={() => router.push("/gallery")}
