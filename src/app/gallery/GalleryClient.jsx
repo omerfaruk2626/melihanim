@@ -30,7 +30,7 @@ import "yet-another-react-lightbox/styles.css";
 
 export default function GalleryClient() {
   const router = useRouter();
-  const [photos, setPhotos] = useState([]);
+  const [items, setItems] = useState([]); // Fotoğraf ve video birlikte
   const [lastPhotoDoc, setLastPhotoDoc] = useState(null);
   const [hasMorePhotos, setHasMorePhotos] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -42,20 +42,21 @@ export default function GalleryClient() {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const { ref: loadMoreRef, inView } = useInView({ threshold: 0 });
 
-  const fetchPhotos = useCallback(async (reset = false, uploader = null) => {
-  console.log("[DEBUG] fetchPhotos called", { reset, uploader });
-  setLoadingMore(true);
+  // Fotoğraf ve video birlikte fetch
+  const fetchItems = useCallback(async (reset = false, uploader = null) => {
+    setLoadingMore(true);
     try {
-      let q;
+      // Fotoğraflar
+      let qPhotos;
       if (reset) {
-        q = query(
+        qPhotos = query(
           collection(db, "photos"),
           where("isDeleted", "==", false),
           orderBy("createdAt", "desc"),
           limit(10)
         );
       } else if (!reset && lastPhotoDoc) {
-        q = query(
+        qPhotos = query(
           collection(db, "photos"),
           where("isDeleted", "==", false),
           orderBy("createdAt", "desc"),
@@ -63,7 +64,7 @@ export default function GalleryClient() {
           limit(10)
         );
       } else if (uploader && uploader !== "all") {
-        q = query(
+        qPhotos = query(
           collection(db, "photos"),
           where("isDeleted", "==", false),
           where("uploaderName", "==", uploader),
@@ -72,35 +73,52 @@ export default function GalleryClient() {
           limit(10)
         );
       } else {
-        q = query(
+        qPhotos = query(
           collection(db, "photos"),
           where("isDeleted", "==", false),
           orderBy("createdAt", "desc"),
           limit(10)
         );
       }
-      const snapshot = await getDocs(q)
-      
-      const photoData = snapshot.docs.map((docSnap) => ({
+      const snapshotPhotos = await getDocs(qPhotos);
+      const photoData = snapshotPhotos.docs.map((docSnap) => ({
         ...docSnap.data(),
         docId: docSnap.id,
+        type: "photo"
       }));
+
+      // Videolar
+      let qVideos = query(
+        collection(db, "videos"),
+        orderBy("createdAt", "desc"),
+        limit(10)
+      );
+      const snapshotVideos = await getDocs(qVideos);
+      const videoData = snapshotVideos.docs.map((docSnap) => ({
+        ...docSnap.data(),
+        docId: docSnap.id,
+        type: "video"
+      }));
+
+      // Birleştir ve tarihe göre sırala
+      let allItems = [...photoData, ...videoData];
+      allItems.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
+
       if (reset) {
-        setPhotos(photoData);
+        setItems(allItems);
       } else {
-        setPhotos((prev) => [...prev, ...photoData]);
+        setItems((prev) => [...prev, ...allItems]);
       }
-      setLastPhotoDoc(snapshot.docs[snapshot.docs.length - 1] || null);
-      setHasMorePhotos(snapshot.docs.length === 10);
-      // Uploaders sadece ilk fetch'te güncellenir
+      setLastPhotoDoc(snapshotPhotos.docs[snapshotPhotos.docs.length - 1] || null);
+      setHasMorePhotos(snapshotPhotos.docs.length === 10);
       if (reset) {
         const uniqueUploaders = [
-          ...new Set(photoData.map((p) => p.uploaderName || "Bilinmiyor")),
+          ...new Set(allItems.map((p) => p.uploaderName || "Bilinmiyor")),
         ];
         setUploaders(uniqueUploaders);
       }
     } catch (err) {
-  console.error("Fotoğraf verileri alınamadı:", err);
+      console.error("Veri alım hatası:", err);
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -109,27 +127,27 @@ export default function GalleryClient() {
 
   // İlk açılışta
   useEffect(() => {
-    setPhotos([]);
+    setItems([]);
     setLastPhotoDoc(null);
     setHasMorePhotos(true);
     setLoading(true);
-    fetchPhotos(true);
+    fetchItems(true);
   }, []);
 
   // Scroll ile yeni batch
   useEffect(() => {
     if (inView && hasMorePhotos && !loading && !loadingMore) {
-      fetchPhotos();
+      fetchItems();
     }
-  }, [inView, hasMorePhotos, loading, loadingMore, fetchPhotos]);
+  }, [inView, hasMorePhotos, loading, loadingMore, fetchItems]);
 
   // Filtreli gösterim için (uploader değişirse resetle)
   useEffect(() => {
-    setPhotos([]);
+    setItems([]);
     setLastPhotoDoc(null);
     setHasMorePhotos(true);
     setLoading(true);
-    fetchPhotos(true, selectedUploader);
+    fetchItems(true, selectedUploader);
   }, [selectedUploader]);
 
   // Lightbox'ta son fotoğrafa gelince yeni batch çek
@@ -137,13 +155,13 @@ export default function GalleryClient() {
     if (
       lightboxOpen &&
       hasMorePhotos &&
-      lightboxIndex >= photos.length - 1 &&
+      lightboxIndex >= items.length - 1 &&
       !loadingMore &&
       !loading
     ) {
-      fetchPhotos();
+      fetchItems();
     }
-  }, [lightboxOpen, lightboxIndex, photos.length, hasMorePhotos, loadingMore, loading, fetchPhotos]);
+  }, [lightboxOpen, lightboxIndex, items.length, hasMorePhotos, loadingMore, loading, fetchItems]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -202,11 +220,12 @@ export default function GalleryClient() {
 
   const slides = useMemo(
     () =>
-      photos.map((photo) => ({
-        src: photo.url,
-        alt: photo.uploaderName || "Fotoğraf",
-      })),
-    [photos]
+      items.map((item) =>
+        item.type === "photo"
+          ? { src: item.url, alt: item.uploaderName || "Fotoğraf", type: "photo" }
+          : { src: item.url, alt: item.uploaderName || "Video", type: "video" }
+      ),
+    [items]
   );
 
   const handleFilterChange = (e) => {
@@ -219,9 +238,7 @@ export default function GalleryClient() {
       <div className="relative z-10 flex flex-col flex-1">
         {/* Üst bar ve filtreler */}
         <div className="sticky top-0 z-10 bg-gray-100/90 backdrop-blur p-4 shadow">
-          <h1 className="text-2xl font-bold text-center text-gray-800">
-            📸 Galerim
-          </h1>
+          <h1 className="text-2xl font-bold text-center text-gray-800">📸 Galerim</h1>
           <div className="mt-4 flex flex-col items-center">
             <select
               value={selectedUploader}
@@ -230,9 +247,7 @@ export default function GalleryClient() {
             >
               <option value="all">🌐 Tüm Katılımcılar</option>
               {uploaders.map((name, idx) => (
-                <option key={idx} value={name}>
-                  {name}
-                </option>
+                <option key={idx} value={name}>{name}</option>
               ))}
             </select>
           </div>
@@ -251,36 +266,43 @@ export default function GalleryClient() {
             <LogoutIcon fontSize="medium" />
           </button>
         </div>
-
-        {/* Fotoğraf grid */}
+        {/* Fotoğraf ve video grid */}
         <div className="flex-1 overflow-y-auto p-4">
           {loading ? (
-            <p className="text-center text-gray-600">
-              Fotoğraflar yükleniyor...
-            </p>
-          ) : photos.length === 0 ? (
-            <p className="text-center text-gray-500">
-              Seçilen kişiye ait fotoğraf yok.
-            </p>
+            <p className="text-center text-gray-600">Fotoğraflar ve videolar yükleniyor...</p>
+          ) : items.length === 0 ? (
+            <p className="text-center text-gray-500">Seçilen kişiye ait içerik yok.</p>
           ) : (
             <>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {photos.map((photo, idx) => (
+                {items.map((item, idx) => (
                   <div
-                    key={photo.docId}
+                    key={item.docId}
                     className="relative w-full aspect-square bg-white shadow rounded overflow-hidden hover:shadow-lg transition-shadow duration-200 group"
                   >
-                    <img
-                      src={photo.url}
-                      alt={`Fotoğraf ${idx + 1}`}
-                      className="object-cover w-full h-full hover:scale-105 transition-transform duration-200 cursor-pointer"
-                      onClick={() => {
-                        setLightboxIndex(idx);
-                        setLightboxOpen(true);
-                      }}
-                    />
+                    {item.type === "photo" ? (
+                      <img
+                        src={item.url}
+                        alt={`Fotoğraf ${idx + 1}`}
+                        className="object-cover w-full h-full hover:scale-105 transition-transform duration-200 cursor-pointer"
+                        onClick={() => {
+                          setLightboxIndex(idx);
+                          setLightboxOpen(true);
+                        }}
+                      />
+                    ) : (
+                      <video
+                        src={item.url}
+                        controls
+                        className="object-cover w-full h-full cursor-pointer"
+                        onClick={() => {
+                          setLightboxIndex(idx);
+                          setLightboxOpen(true);
+                        }}
+                      />
+                    )}
                     <button
-                      onClick={() => handleSoftDeletePhoto(photo)}
+                      onClick={() => handleSoftDeletePhoto(item)}
                       className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white rounded-full w-8 h-8 flex items-center justify-center text-xs opacity-80 group-hover:opacity-100 cursor-pointer transition"
                       title="Sil"
                     >
@@ -289,17 +311,13 @@ export default function GalleryClient() {
                   </div>
                 ))}
               </div>
-
               {/* yükleme tetikleyici */}
               <div ref={loadMoreRef} className="h-10" />
               {loadingMore && hasMorePhotos && (
-                <p className="text-center text-sm text-gray-500 mt-4">
-                  Daha fazla fotoğraf yükleniyor...
-                </p>
+                <p className="text-center text-sm text-gray-500 mt-4">Daha fazla içerik yükleniyor...</p>
               )}
             </>
           )}
-
           <Lightbox
             open={lightboxOpen}
             close={() => setLightboxOpen(false)}
@@ -310,20 +328,38 @@ export default function GalleryClient() {
             }}
             render={{
               slide: ({ slide }) => (
-                <div className="relative w-full h-full flex items-center justify-center">
-                  <img
-                    src={slide.src}
-                    alt={slide.alt}
-                    style={{
-                      maxHeight: "90vh",
-                      maxWidth: "100%",
-                      objectFit: "contain",
-                    }}
-                  />
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/80 text-white px-4 py-1 rounded-full text-sm">
-                    {lightboxIndex + 1} / {slides.length} • @{slide.alt}
+                slide.type === "photo" ? (
+                  <div className="relative w-full h-full flex items-center justify-center">
+                    <img
+                      src={slide.src}
+                      alt={slide.alt}
+                      style={{
+                        maxHeight: "90vh",
+                        maxWidth: "100%",
+                        objectFit: "contain",
+                      }}
+                    />
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/80 text-white px-4 py-1 rounded-full text-sm">
+                      {lightboxIndex + 1} / {slides.length} • @{slide.alt}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="relative w-full h-full flex items-center justify-center">
+                    <video
+                      src={slide.src}
+                      controls
+                      autoPlay
+                      style={{
+                        maxHeight: "90vh",
+                        maxWidth: "100%",
+                        objectFit: "contain",
+                      }}
+                    />
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/80 text-white px-4 py-1 rounded-full text-sm">
+                      {lightboxIndex + 1} / {slides.length} • @{slide.alt}
+                    </div>
+                  </div>
+                )
               ),
             }}
           />
