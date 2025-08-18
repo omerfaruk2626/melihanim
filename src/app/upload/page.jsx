@@ -161,16 +161,16 @@ export default function UploadPage() {
           placeholder="Adınız (zorunlu)"
           value={uploaderName}
           onChange={(e) => setUploaderName(e.target.value)}
-          className="mb-4 border-4  border-purple-600 animate-pulse px-3 py-2 rounded w-full max-w-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="mb-4 text-xl bg-gray-300 border-4 border-purple-600  px-3 py-2 rounded w-full max-w-md focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder-black"
         />
 
         {!uploadFinished && (
           <label
             htmlFor="photoInput"
-            className="border-4 border-dashed border-purple-700 rounded-lg p-8 text-center cursor-pointer hover:bg-gray-100 hover:text-gray-700 transition w-full max-w-2xl mb-6"
+            className="border-4 border-dashed border-purple-700 rounded-lg p-8 text-center cursor-pointer bg-gray-50 hover:bg-gray-100 hover:text-gray-700 transition w-full max-w-2xl mb-6"
           >
-            <p className=" font-medium">
-              📂 Fotoğraf seçmek için tıklayın (en fazla {MAX_FILES})
+            <p className=" font-medium text-black ">
+              📂 Fotoğraf seçmek için tıklayın (en fazla {MAX_FILES} fotoğraf) 
             </p>
             <input
               type="file"

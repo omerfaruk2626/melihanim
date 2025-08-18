@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import { where } from "firebase/firestore";
@@ -12,6 +12,8 @@ import {
   deleteDoc,
   doc,
   addDoc,
+  limit,
+  startAfter,
 } from "firebase/firestore";
 import { updateDoc } from "firebase/firestore";
 
@@ -29,49 +31,119 @@ import "yet-another-react-lightbox/styles.css";
 export default function GalleryClient() {
   const router = useRouter();
   const [photos, setPhotos] = useState([]);
-  const [filteredPhotos, setFilteredPhotos] = useState([]);
+  const [lastPhotoDoc, setLastPhotoDoc] = useState(null);
+  const [hasMorePhotos, setHasMorePhotos] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [uploaders, setUploaders] = useState([]);
   const [selectedUploader, setSelectedUploader] = useState("all");
-  const [loading, setLoading] = useState(true);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [showScrollTop, setShowScrollTop] = useState(false);
-
-  // 👇 lazy loading için eklendi
-  const [visibleCount, setVisibleCount] = useState(2);
   const { ref: loadMoreRef, inView } = useInView({ threshold: 0 });
 
-  useEffect(() => {
-    const fetchPhotos = async () => {
-      try {
-        const q = query(
+  const fetchPhotos = useCallback(async (reset = false, uploader = null) => {
+  console.log("[DEBUG] fetchPhotos called", { reset, uploader });
+  setLoadingMore(true);
+    try {
+      let q;
+      if (reset) {
+        q = query(
           collection(db, "photos"),
-          where("isDeleted", "==", false), // 🔍 sadece silinmemişler
-          orderBy("createdAt", "desc")
+          where("isDeleted", "==", false),
+          orderBy("createdAt", "desc"),
+          limit(10)
         );
-
-        const snapshot = await getDocs(q);
-        const photoData = snapshot.docs.map((docSnap) => ({
-          ...docSnap.data(),
-          docId: docSnap.id,
-        }));
-
+      } else if (!reset && lastPhotoDoc) {
+        q = query(
+          collection(db, "photos"),
+          where("isDeleted", "==", false),
+          orderBy("createdAt", "desc"),
+          startAfter(lastPhotoDoc),
+          limit(10)
+        );
+      } else if (uploader && uploader !== "all") {
+        q = query(
+          collection(db, "photos"),
+          where("isDeleted", "==", false),
+          where("uploaderName", "==", uploader),
+          orderBy("createdAt", "desc"),
+          ...(reset ? [] : [startAfter(lastPhotoDoc)]),
+          limit(10)
+        );
+      } else {
+        q = query(
+          collection(db, "photos"),
+          where("isDeleted", "==", false),
+          orderBy("createdAt", "desc"),
+          limit(10)
+        );
+      }
+      const snapshot = await getDocs(q)
+      
+      const photoData = snapshot.docs.map((docSnap) => ({
+        ...docSnap.data(),
+        docId: docSnap.id,
+      }));
+      if (reset) {
         setPhotos(photoData);
-        setFilteredPhotos(photoData);
-
+      } else {
+        setPhotos((prev) => [...prev, ...photoData]);
+      }
+      setLastPhotoDoc(snapshot.docs[snapshot.docs.length - 1] || null);
+      setHasMorePhotos(snapshot.docs.length === 10);
+      // Uploaders sadece ilk fetch'te güncellenir
+      if (reset) {
         const uniqueUploaders = [
           ...new Set(photoData.map((p) => p.uploaderName || "Bilinmiyor")),
         ];
         setUploaders(uniqueUploaders);
-      } catch (err) {
-        console.error("Fotoğraf verileri alınamadı:", err);
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (err) {
+  console.error("Fotoğraf verileri alınamadı:", err);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, [lastPhotoDoc, loading, loadingMore]);
 
-    fetchPhotos();
+  // İlk açılışta
+  useEffect(() => {
+    setPhotos([]);
+    setLastPhotoDoc(null);
+    setHasMorePhotos(true);
+    setLoading(true);
+    fetchPhotos(true);
   }, []);
+
+  // Scroll ile yeni batch
+  useEffect(() => {
+    if (inView && hasMorePhotos && !loading && !loadingMore) {
+      fetchPhotos();
+    }
+  }, [inView, hasMorePhotos, loading, loadingMore, fetchPhotos]);
+
+  // Filtreli gösterim için (uploader değişirse resetle)
+  useEffect(() => {
+    setPhotos([]);
+    setLastPhotoDoc(null);
+    setHasMorePhotos(true);
+    setLoading(true);
+    fetchPhotos(true, selectedUploader);
+  }, [selectedUploader]);
+
+  // Lightbox'ta son fotoğrafa gelince yeni batch çek
+  useEffect(() => {
+    if (
+      lightboxOpen &&
+      hasMorePhotos &&
+      lightboxIndex >= photos.length - 1 &&
+      !loadingMore &&
+      !loading
+    ) {
+      fetchPhotos();
+    }
+  }, [lightboxOpen, lightboxIndex, photos.length, hasMorePhotos, loadingMore, loading, fetchPhotos]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -80,17 +152,6 @@ export default function GalleryClient() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  useEffect(() => {
-    if (inView && visibleCount < filteredPhotos.length) {
-      setVisibleCount((prev) => prev + 10);
-    }
-  }, [inView, visibleCount, filteredPhotos.length]);
-
-  const visiblePhotos = useMemo(
-    () => filteredPhotos.slice(0, visibleCount),
-    [filteredPhotos, visibleCount]
-  );
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -133,7 +194,6 @@ export default function GalleryClient() {
 
       toast.success("Fotoğraf silindi.");
       setPhotos((prev) => prev.filter((p) => p.docId !== photo.docId));
-      setFilteredPhotos((prev) => prev.filter((p) => p.docId !== photo.docId));
     } catch (err) {
       console.error("Silme hatası:", err);
       toast.error("Silme başarısız oldu");
@@ -142,22 +202,16 @@ export default function GalleryClient() {
 
   const slides = useMemo(
     () =>
-      filteredPhotos.map((photo) => ({
+      photos.map((photo) => ({
         src: photo.url,
         alt: photo.uploaderName || "Fotoğraf",
       })),
-    [filteredPhotos]
+    [photos]
   );
 
   const handleFilterChange = (e) => {
     const value = e.target.value;
     setSelectedUploader(value);
-    const filtered =
-      value === "all"
-        ? photos
-        : photos.filter((p) => (p.uploaderName || "Bilinmiyor") === value);
-    setFilteredPhotos(filtered);
-    setVisibleCount(20); // filtre değiştiğinde yeniden başlat
   };
 
   return (
@@ -204,14 +258,14 @@ export default function GalleryClient() {
             <p className="text-center text-gray-600">
               Fotoğraflar yükleniyor...
             </p>
-          ) : visiblePhotos.length === 0 ? (
+          ) : photos.length === 0 ? (
             <p className="text-center text-gray-500">
               Seçilen kişiye ait fotoğraf yok.
             </p>
           ) : (
             <>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {visiblePhotos.map((photo, idx) => (
+                {photos.map((photo, idx) => (
                   <div
                     key={photo.docId}
                     className="relative w-full aspect-square bg-white shadow rounded overflow-hidden hover:shadow-lg transition-shadow duration-200 group"
@@ -238,7 +292,7 @@ export default function GalleryClient() {
 
               {/* yükleme tetikleyici */}
               <div ref={loadMoreRef} className="h-10" />
-              {visibleCount < filteredPhotos.length && (
+              {loadingMore && hasMorePhotos && (
                 <p className="text-center text-sm text-gray-500 mt-4">
                   Daha fazla fotoğraf yükleniyor...
                 </p>
@@ -287,3 +341,4 @@ export default function GalleryClient() {
     </div>
   );
 }
+
