@@ -177,20 +177,18 @@ export default function GalleryClient() {
     router.push("/login");
   };
 
-  const handleSoftDeletePhoto = async (photo) => {
+  const handleSoftDeletePhoto = async (item) => {
     // 1. Onay
     const firstConfirm = await Swal.fire({
-      title: "Fotoğrafı silmek istiyor musun?",
-      text: "Bu fotoğraf silinecek.",
+      title: item.type === "video" ? "Videoyu silmek istiyor musun?" : "Fotoğrafı silmek istiyor musun?",
+      text: item.type === "video" ? "Bu video silinecek." : "Bu fotoğraf silinecek.",
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: "Evet, devam et",
       cancelButtonText: "İptal",
       confirmButtonColor: "#d33",
     });
-
     if (!firstConfirm.isConfirmed) return;
-
     // 2. Onay
     const secondConfirm = await Swal.fire({
       title: "Emin misin?",
@@ -201,17 +199,15 @@ export default function GalleryClient() {
       cancelButtonText: "Vazgeç",
       confirmButtonColor: "#d33",
     });
-
     if (!secondConfirm.isConfirmed) return;
-
     try {
-      await updateDoc(doc(db, "photos", photo.docId), {
+      const collectionName = item.type === "video" ? "videos" : "photos";
+      await updateDoc(doc(db, collectionName, item.docId), {
         isDeleted: true,
         deletedAt: new Date(),
       });
-
-      toast.success("Fotoğraf silindi.");
-      setPhotos((prev) => prev.filter((p) => p.docId !== photo.docId));
+      toast.success(item.type === "video" ? "Video silindi." : "Fotoğraf silindi.");
+      setItems((prev) => prev.filter((p) => p.docId !== item.docId));
     } catch (err) {
       console.error("Silme hatası:", err);
       toast.error("Silme başarısız oldu");
