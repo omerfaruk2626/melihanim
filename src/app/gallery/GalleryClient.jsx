@@ -87,9 +87,9 @@ export default function GalleryClient() {
         type: "photo"
       }));
 
-      // Videolar
       let qVideos = query(
         collection(db, "videos"),
+        where("isDeleted", "==", false),
         orderBy("createdAt", "desc"),
         limit(10)
       );
@@ -273,7 +273,7 @@ export default function GalleryClient() {
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                 {items.map((item, idx) => (
                   <div
-                    key={item.docId}
+                    key={`${item.type}-${item.docId}`}
                     className="relative w-full aspect-square bg-white shadow rounded overflow-hidden hover:shadow-lg transition-shadow duration-200 group"
                   >
                     {item.type === "photo" ? (
